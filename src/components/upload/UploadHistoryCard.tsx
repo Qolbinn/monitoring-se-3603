@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { id } from "date-fns/locale";
 import { UploadService } from "@/services/UploadService";
 
@@ -21,7 +22,7 @@ export async function UploadHistoryCard() {
               <tr>
                 <th scope="col" className="px-6 py-3 font-medium">Nama File</th>
                 <th scope="col" className="px-6 py-3 font-medium">Periode Data</th>
-                <th scope="col" className="px-6 py-3 font-medium">Waktu Unggah</th>
+                <th scope="col" className="px-6 py-3 font-medium">Jam.Menit</th>
                 <th scope="col" className="px-6 py-3 font-medium text-center">Status</th>
                 <th scope="col" className="px-6 py-3 font-medium text-right">Baris Diproses</th>
               </tr>
@@ -40,10 +41,10 @@ export async function UploadHistoryCard() {
                       {log.filename}
                     </td>
                     <td className="px-6 py-4">
-                      {format(new Date(log.tanggal_data), "d MMMM yyyy", { locale: id })}
+                      {formatInTimeZone(new Date(log.tanggal_data), "Asia/Jakarta", "d MMMM yyyy", { locale: id })}
                     </td>
                     <td className="px-6 py-4">
-                      {format(new Date(log.uploaded_at), "d MMM yyyy, HH.mm", { locale: id })}
+                      {formatInTimeZone(new Date(log.uploaded_at), "Asia/Jakarta", "HH.mm 'WIB'", { locale: id })}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span

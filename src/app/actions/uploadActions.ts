@@ -23,6 +23,7 @@ const progressRowSchema = z.object({
 const uploadPayloadSchema = z.object({
   filename: z.string().min(1, "Nama file harus ada"),
   tanggal_data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD"),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Format waktu harus HH:mm"),
   rows: z.array(progressRowSchema).min(1, "Data tidak boleh kosong"),
 });
 
@@ -44,6 +45,7 @@ export async function submitUploadData(payload: unknown) {
     const result = await UploadService.processUpload(
       validatedData.filename,
       validatedData.tanggal_data,
+      validatedData.time,
       validatedData.rows
     );
 
