@@ -3,17 +3,15 @@ import { HorizontalBarChartCard } from "@/components/dashboard/HorizontalBarChar
 import { TrendChartCard } from "@/components/dashboard/TrendChartCard";
 import { DashboardService } from "@/services/DashboardService";
 import Link from "next/link";
-import { Upload } from "lucide-react";
+import { Upload, Settings } from "lucide-react";
 
 import { format, startOfWeek, endOfWeek, intervalToDuration } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { id } from "date-fns/locale";
 
-type Props = {
+export default async function Home(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-};
-
-export default async function Home(props: Props) {
+}) {
   // Resolving searchParams promise in Next.js 15/16
   const searchParams = await props.searchParams;
   
@@ -48,9 +46,12 @@ export default async function Home(props: Props) {
   const columnDataResponse = await DashboardService.getColumnData({ date: columnDate, kodeKecamatan: columnKecamatan });
   const barDataResponse = await DashboardService.getColumnData({ date: barDate, kodeKecamatan: barKecamatan });
 
+  const surveyPeriod = await DashboardService.getSurveyPeriod();
+  const defaultSurveyStart = surveyPeriod ? surveyPeriod.start_date : "2026-06-15";
+
   // Fetching global data for KPI Cards (Unfiltered)
   const globalTrendData = await DashboardService.getTrendData({ 
-    startDate: "2026-06-15", 
+    startDate: defaultSurveyStart, 
     endDate: defaultToday, 
     kodeKecamatan: "all", 
     kodeDesa: "all" 
@@ -84,13 +85,23 @@ export default async function Home(props: Props) {
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard Monitoring</h1>
             <p className="text-muted-foreground mt-1">Pantau progres pendataan Kabupaten Tangerang secara harian.</p>
           </div>
-          <Link 
-            href="/upload" 
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Data
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link 
+              href="/settings" 
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-sm font-medium shadow-sm transition-colors hover:bg-muted hover:text-foreground"
+              title="Pengaturan"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="sr-only">Pengaturan</span>
+            </Link>
+            <Link 
+              href="/upload" 
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Data
+            </Link>
+          </div>
         </div>
 
         {/* Dashboard Content */}
@@ -174,9 +185,9 @@ export default async function Home(props: Props) {
               kecamatanOptions={kecamatanOptions}
               desaOptions={trendDesaOptions}
               currentParams={{ startDate, endDate, kodeKecamatan, kodeDesa }}
+              surveyPeriod={surveyPeriod}
             />
             
-            {/* Column Chart */}
             <ColumnChartCard 
               currentDate={columnDate}
               kodeKecamatan={columnKecamatan}
@@ -184,9 +195,9 @@ export default async function Home(props: Props) {
               chartData={columnDataResponse.data}
               idealPercentage={columnDataResponse.idealPercentage}
               lastUpdatedTime={globalKPI?.lastUpdatedAtRaw}
+              surveyPeriod={surveyPeriod}
             />
 
-            {/* Horizontal Bar Chart */}
             <HorizontalBarChartCard 
               currentDate={barDate}
               kodeKecamatan={barKecamatan}
@@ -194,6 +205,7 @@ export default async function Home(props: Props) {
               chartData={barDataResponse.data}
               idealPercentage={barDataResponse.idealPercentage}
               lastUpdatedTime={globalKPI?.lastUpdatedAtRaw}
+              surveyPeriod={surveyPeriod}
             />
           </div>
         </div>

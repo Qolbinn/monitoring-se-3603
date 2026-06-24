@@ -15,7 +15,38 @@ export interface TrendDataPoint {
   idealPercentage: number;
 }
 
+export interface SurveyPeriod {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+}
+
 export class DashboardService {
+  /**
+   * Mengambil pengaturan periode survei aktif
+   */
+  static async getSurveyPeriod(): Promise<SurveyPeriod | null> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("survey_period")
+      .select("*")
+      .eq("id", 1)
+      .single();
+
+    if (error) {
+      console.error("Error fetching survey period:", error);
+      // Fallback ke default jika tabel belum ada atau gagal diakses
+      return {
+        id: 1,
+        name: "Sensus Ekonomi 2026",
+        start_date: "2026-06-15",
+        end_date: "2026-08-31"
+      };
+    }
+    return data as SurveyPeriod;
+  }
+
   /**
    * Mengambil daftar kecamatan untuk keperluan dropdown filter.
    */
@@ -144,9 +175,15 @@ export class DashboardService {
     let prevTarget = 0;
     let prevRealisasi = 0;
 
-    // Rentang Survei Resmi (15 Juni - 31 Agustus 2026) -> 75 Hari
-    const surveyStartDate = parseISO("2026-06-15");
-    const totalSurveyDays = 75;
+    const surveyPeriod = await this.getSurveyPeriod();
+    let surveyStartDate = parseISO("2026-06-15");
+    let totalSurveyDays = 75;
+    
+    if (surveyPeriod) {
+      surveyStartDate = parseISO(surveyPeriod.start_date);
+      const endDate = parseISO(surveyPeriod.end_date);
+      totalSurveyDays = differenceInDays(endDate, surveyStartDate) + 1;
+    }
 
     sortedDates.forEach((dateString) => {
       const current = aggregatedData[dateString];
@@ -160,7 +197,7 @@ export class DashboardService {
         ? (current.realisasi / current.target_total) * 100 
         : 0;
 
-      // Hitung Ideal Percentage (Hanya dari 15 Juni sampai 31 Agustus)
+      // Hitung Ideal Percentage berdasarkan periode dari database
       let idealPercentage = 0;
       const daysSinceStart = differenceInDays(currentDate, surveyStartDate) + 1;
       
@@ -199,9 +236,16 @@ export class DashboardService {
     const supabase = await createClient();
     
     // Kalkulasi Ideal Percentage
-    const surveyStartDate = parseISO("2026-06-15");
+    const surveyPeriod = await this.getSurveyPeriod();
+    let surveyStartDate = parseISO("2026-06-15");
+    let totalSurveyDays = 75;
+    
+    if (surveyPeriod) {
+      surveyStartDate = parseISO(surveyPeriod.start_date);
+      const endDate = parseISO(surveyPeriod.end_date);
+      totalSurveyDays = differenceInDays(endDate, surveyStartDate) + 1;
+    }
     const targetDate = parseISO(params.date);
-    const totalSurveyDays = 75;
     
     let idealPercentage = 0;
     const daysSinceStart = differenceInDays(targetDate, surveyStartDate) + 1;
