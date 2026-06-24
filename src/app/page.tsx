@@ -5,7 +5,8 @@ import { DashboardService } from "@/services/DashboardService";
 import Link from "next/link";
 import { Upload } from "lucide-react";
 
-import { format, startOfWeek, endOfWeek, formatDistanceToNowStrict, intervalToDuration } from "date-fns";
+import { format, startOfWeek, endOfWeek, intervalToDuration } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { id } from "date-fns/locale";
 
 type Props = {
@@ -153,7 +154,7 @@ export default async function Home(props: Props) {
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Kondisi Data Terakhir</span>
                   <span className="text-base font-semibold font-heading">
-                    {globalKPI ? format(lastUpdatedDate!, "dd MMM yyyy, HH:mm", { locale: id }) : "-"}
+                    {globalKPI ? formatInTimeZone(lastUpdatedDate!, "Asia/Jakarta", "dd MMM yyyy, HH:mm", { locale: id }) : "-"}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">

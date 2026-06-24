@@ -67,14 +67,19 @@ export class UploadService {
   static async processUpload(
     filename: string,
     tanggal_data: string,
+    time: string,
     rows: ProgressRow[]
   ): Promise<{ success: boolean; message: string }> {
     const adminSupabase = await createAdminClient();
+
+    // Menggabungkan tanggal dan waktu menjadi UTC Timestamp (dengan asumsi WIB = +07:00)
+    const combinedTimestamp = `${tanggal_data}T${time}:00+07:00`;
 
     // 1. Siapkan payload untuk tabel progress_harian
     const upsertPayload = rows.map((row) => ({
       ...row,
       tanggal_data,
+      last_updated_at: combinedTimestamp,
     }));
 
     // 2. Lakukan operasi Upsert ke progress_harian
@@ -91,6 +96,7 @@ export class UploadService {
     const { error: logError } = await adminSupabase.from("log_upload").insert({
       filename,
       tanggal_data,
+      uploaded_at: combinedTimestamp,
       total_rows_processed: rows.length,
       status: isSuccess ? "SUCCESS" : "FAILED",
     });

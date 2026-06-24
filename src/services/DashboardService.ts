@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { format, parseISO, differenceInDays } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { id } from "date-fns/locale";
 
 export interface TrendDataPoint {
@@ -170,8 +171,8 @@ export class DashboardService {
       }
 
       trendResult.push({
-        date: format(currentDate, "d MMM", { locale: id }),
-        time: `${format(currentDate, "d MMM yyyy", { locale: id })}, ${format(new Date(current.last_updated_at), "HH.mm 'WIB'")}`,
+        date: formatInTimeZone(currentDate, "Asia/Jakarta", "d MMM", { locale: id }),
+        time: `${formatInTimeZone(currentDate, "Asia/Jakarta", "d MMM yyyy", { locale: id })}, ${formatInTimeZone(new Date(current.last_updated_at), "Asia/Jakarta", "HH.mm 'WIB'")}`,
         lastUpdatedAtRaw: current.last_updated_at,
         target: current.target_total,
         realisasi: current.realisasi,

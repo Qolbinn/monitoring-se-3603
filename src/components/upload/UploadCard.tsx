@@ -4,6 +4,7 @@ import * as React from "react";
 import { CloudUpload, FileText, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, parse } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { id as localeId } from "date-fns/locale";
 import * as xlsx from "xlsx";
 import { checkUploadStatus, submitUploadData } from "@/app/actions/uploadActions";
@@ -167,6 +168,7 @@ export function UploadCard() {
     const payload = {
       filename: selectedFile.name,
       tanggal_data: uploadDate,
+      time: uploadTime,
       rows: parsedRows
     };
 
@@ -292,8 +294,8 @@ export function UploadCard() {
                   {isCheckingStatus ? (
                     <p className="text-xs text-blue-700 mt-1 flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Mengecek database...</p>
                   ) : lastUploadStatus ? (
-                    <p className="text-xs text-blue-700 mt-1">
-                      Data untuk tanggal ini <strong>sudah ada</strong>. Terakhir kali diperbarui pada: <span className="font-semibold">{format(new Date(lastUploadStatus.uploaded_at), "d MMMM yyyy, HH.mm 'WIB'", { locale: localeId })}</span>.
+                    <p className="text-sm text-foreground mt-1">
+                      Data untuk tanggal ini <strong>sudah ada</strong>. Terakhir kali diperbarui pada: <span className="font-semibold">{formatInTimeZone(new Date(lastUploadStatus.uploaded_at), "Asia/Jakarta", "d MMMM yyyy, HH.mm 'WIB'", { locale: localeId })}</span>.
                     </p>
                   ) : (
                     <p className="text-xs text-blue-700 mt-1">
