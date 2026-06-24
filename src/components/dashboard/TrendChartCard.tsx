@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Filter, Calendar as CalendarIcon, RotateCcw, Download, FileSpreadsheet, ImageIcon } from "lucide-react";
 import { exportDataToExcel, downloadChartAsImage } from "@/lib/utils";
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, TooltipProps } from "recharts";
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, TooltipProps, ResponsiveContainer, LabelList } from "recharts";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChartConfig,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -44,7 +45,7 @@ const chartConfig = {
   },
   idealPercentage: {
     label: "Ideal Target (%)",
-    color: "var(--color-secondary)",
+    color: "#ef4444",
   },
 } satisfies ChartConfig;
 
@@ -96,6 +97,8 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 import { RegionCombobox } from "@/components/ui/region-combobox";
 
+import { fetchDesaOptions } from "@/app/actions/regionActions";
+
 // Internal Region Filter Popover Component
 function RegionFilter({ 
   options, 
@@ -112,11 +115,34 @@ function RegionFilter({
   const searchParams = useSearchParams();
   const [selectedKecamatan, setSelectedKecamatan] = React.useState(currentKecamatan);
   const [selectedDesa, setSelectedDesa] = React.useState(currentDesa);
+  const [dynamicDesaOptions, setDynamicDesaOptions] = React.useState<any[]>(desaOptions || []);
+  const [isLoadingDesa, setIsLoadingDesa] = React.useState(false);
 
-  // If kecamatan changes, reset desa
-  const handleKecamatanChange = (val: string) => {
-    setSelectedKecamatan(val || "all");
+  React.useEffect(() => {
+    setDynamicDesaOptions(desaOptions || []);
+    setSelectedKecamatan(currentKecamatan);
+    setSelectedDesa(currentDesa);
+  }, [desaOptions, currentKecamatan, currentDesa]);
+
+  // If kecamatan changes, reset desa and fetch dynamically
+  const handleKecamatanChange = async (val: string) => {
+    const newKec = val || "all";
+    setSelectedKecamatan(newKec);
     setSelectedDesa("all");
+
+    if (newKec === "all") {
+      setDynamicDesaOptions([]);
+    } else {
+      setIsLoadingDesa(true);
+      try {
+        const newDesaList = await fetchDesaOptions(newKec);
+        setDynamicDesaOptions(newDesaList);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoadingDesa(false);
+      }
+    }
   };
 
   const applyFilter = () => {
@@ -147,7 +173,7 @@ function RegionFilter({
 
   const desaItems = [
     { label: "Semua Desa", value: "all" },
-    ...(desaOptions || []).map((opt) => ({
+    ...dynamicDesaOptions.map((opt) => ({
       label: `[${opt.kode_desa}] ${opt.nama_desa.toUpperCase()}`,
       value: opt.kode_desa
     }))
@@ -193,17 +219,16 @@ function RegionFilter({
             />
           </div>
 
-          {selectedKecamatan !== "all" && desaOptions && desaOptions.length > 0 && (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">DESA</label>
-              <RegionCombobox 
-                options={desaItems}
-                value={selectedDesa}
-                onChange={(val) => setSelectedDesa(val || "all")}
-                placeholder="Cari Desa..."
-              />
-            </div>
-          )}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">DESA</label>
+            <RegionCombobox 
+              options={selectedKecamatan === "all" ? [{ label: "Pilih Kecamatan Dulu", value: "all" }] : (isLoadingDesa ? [{ label: "Memuat...", value: "all" }] : desaItems)}
+              value={selectedKecamatan === "all" ? "all" : selectedDesa}
+              onChange={(val) => setSelectedDesa(val || "all")}
+              placeholder={isLoadingDesa ? "Memuat..." : "Cari Desa..."}
+              disabled={selectedKecamatan === "all" || isLoadingDesa}
+            />
+          </div>
 
           <div className="flex gap-2 pt-2">
             <button onClick={resetFilter} className="flex-1 h-9 inline-flex items-center justify-center rounded-md text-sm font-medium border border-border bg-background text-foreground shadow-sm hover:bg-muted transition-colors">
@@ -315,16 +340,36 @@ interface TrendChartCardProps {
 export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, currentParams }: TrendChartCardProps) {
   const formattedStart = format(new Date(currentParams.startDate), "dd MMM yyyy", { locale: id });
   const formattedEnd = format(new Date(currentParams.endDate), "dd MMM yyyy", { locale: id });
+  const [showDataLabels, setShowDataLabels] = React.useState(true);
+
+  const getTrendTitle = () => {
+    const startStr = format(new Date(currentParams.startDate), "dd MMMM", { locale: id });
+    const endStr = format(new Date(currentParams.endDate), "dd MMMM", { locale: id });
+    const dateStr = `(${startStr} - ${endStr})`;
+    
+    if (!currentParams.kodeKecamatan || currentParams.kodeKecamatan === "all") {
+      return `KABUPATEN TANGERANG ${dateStr}`;
+    }
+    
+    const kecName = kecamatanOptions.find(k => k.kode_kecamatan === currentParams.kodeKecamatan)?.nama_kecamatan?.toUpperCase() || "";
+    
+    if (!currentParams.kodeDesa || currentParams.kodeDesa === "all") {
+      return `KECAMATAN ${kecName} ${dateStr}`;
+    }
+    
+    const desaName = desaOptions?.find(d => d.kode_desa === currentParams.kodeDesa)?.nama_desa?.toUpperCase() || "";
+    return `KECAMATAN ${kecName} (${desaName}) ${dateStr}`;
+  };
 
   return (
-    <Card id="trend-chart-card" className="rounded-[16px] border-border shadow-sm col-span-1">
+    <Card className="rounded-[16px] border-border shadow-sm col-span-1">
       <CardHeader className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b border-border">
         <div>
           <div className="flex items-center gap-2">
             <CardTitle className="text-lg font-bold">Trend Persentase Realisasi Pendataan (Harian)</CardTitle>
             <Popover>
-              <PopoverTrigger className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors" title="Download">
-                <Download className="h-4 w-4" />
+              <PopoverTrigger className="px-2 py-1 hover:bg-muted rounded text-sm font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5" title="Download">
+                Download <Download className="h-4 w-4" />
               </PopoverTrigger>
               <PopoverContent className="w-48 p-2" align="start">
                 <div className="flex flex-col gap-1">
@@ -346,13 +391,20 @@ export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, curre
               </PopoverContent>
             </Popover>
           </div>
-          <CardDescription className="text-xs mt-1">
-            Menampilkan data persentase capaian dari <span className="font-semibold text-foreground">{formattedStart}</span> hingga <span className="font-semibold text-foreground">{formattedEnd}</span>.
-          </CardDescription>
         </div>
         
         {/* Filters Section */}
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center space-x-2 bg-muted/30 p-1.5 rounded-md border border-border/50">
+            <Switch 
+              id="trend-label-toggle" 
+              checked={showDataLabels}
+              onCheckedChange={setShowDataLabels}
+            />
+            <label htmlFor="trend-label-toggle" className="text-xs font-medium cursor-pointer select-none pr-1">
+              Label Data
+            </label>
+          </div>
           <RegionFilter 
             options={kecamatanOptions} 
             desaOptions={desaOptions}
@@ -363,7 +415,10 @@ export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, curre
         </div>
       </CardHeader>
       
-      <CardContent className="p-6">
+      <CardContent id="trend-chart-card" className="pt-6 bg-card rounded-b-[16px] p-4 sm:p-6">
+        <div className="mb-4 text-center w-full">
+          <h3 className="text-base font-bold uppercase tracking-wider">{getTrendTitle()}</h3>
+        </div>
         {chartData.length === 0 ? (
           <div className="h-[400px] w-full flex items-center justify-center">
             <p className="text-muted-foreground text-sm">Tidak ada data untuk rentang waktu dan wilayah ini.</p>
@@ -385,13 +440,13 @@ export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, curre
                 tickLine={false}
                 axisLine={false}
                 tickMargin={10}
-                className="text-xs"
+                tick={{ fontSize: 13, fontWeight: "bold", fill: "currentColor" }}
               />
               <YAxis 
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => `${value}%`}
-                className="text-xs"
+                tick={{ fontSize: 13, fontWeight: "bold", fill: "currentColor" }}
                 domain={['auto', 'auto']}
               />
               <ChartTooltip content={<CustomTooltip />} />
@@ -403,11 +458,21 @@ export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, curre
                 strokeWidth={3}
                 dot={{ r: 4 }}
                 activeDot={{ r: 6 }}
-              />
+              >
+                {showDataLabels && (
+                  <LabelList
+                    dataKey="actualPercentage"
+                    position="top"
+                    offset={15}
+                    formatter={(val: any) => typeof val === 'number' ? val.toFixed(1) : val}
+                    style={{ fontSize: 13, fontWeight: "bold", fill: "currentColor" }}
+                  />
+                )}
+              </Line>
               <Line
                 type="linear"
                 dataKey="idealPercentage"
-                stroke="var(--color-idealPercentage)"
+                stroke="#ef4444"
                 strokeWidth={2}
                 strokeDasharray="5 5"
                 dot={false}

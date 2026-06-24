@@ -183,6 +183,7 @@ export default async function Home(props: Props) {
               kecamatanOptions={kecamatanOptions}
               chartData={columnDataResponse.data}
               idealPercentage={columnDataResponse.idealPercentage}
+              lastUpdatedTime={globalKPI?.lastUpdatedAtRaw}
             />
 
             {/* Horizontal Bar Chart */}
@@ -192,6 +193,7 @@ export default async function Home(props: Props) {
               kecamatanOptions={kecamatanOptions}
               chartData={barDataResponse.data}
               idealPercentage={barDataResponse.idealPercentage}
+              lastUpdatedTime={globalKPI?.lastUpdatedAtRaw}
             />
           </div>
         </div>
