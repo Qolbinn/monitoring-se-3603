@@ -3,7 +3,7 @@
 import * as React from "react";
 import { format, parse } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { CalendarIcon, Filter, Download, FileSpreadsheet, ImageIcon } from "lucide-react";
+import { CalendarIcon, Filter, Download, FileSpreadsheet, ImageIcon, Loader2 } from "lucide-react";
 import { exportDataToExcel, downloadChartAsImage } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,12 +21,13 @@ interface HorizontalBarChartCardProps {
   chartData: { area: string; actualPercentage: number; target: number; realisasi: number }[];
   idealPercentage: number;
   lastUpdatedTime?: string;
+  surveyPeriod?: any;
 }
 
 import { RegionCombobox } from "@/components/ui/region-combobox";
 
 // Internal Region Filter Popover Component
-function RegionFilter({ currentKecamatan, options }: { currentKecamatan: string, options: { kode_kecamatan: string, nama_kecamatan: string }[] }) {
+function RegionFilter({ currentKecamatan, options, onTransitionStart }: { currentKecamatan: string, options: { kode_kecamatan: string, nama_kecamatan: string }[], onTransitionStart: (cb: () => void) => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selected, setSelected] = React.useState(currentKecamatan);
@@ -34,14 +35,14 @@ function RegionFilter({ currentKecamatan, options }: { currentKecamatan: string,
   const applyFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("barKecamatan", selected);
-    router.push(`/?${params.toString()}`, { scroll: false });
+    onTransitionStart(() => router.push(`/?${params.toString()}`, { scroll: false }));
   };
 
   const resetFilter = () => {
     setSelected("all");
     const params = new URLSearchParams(searchParams.toString());
     params.set("barKecamatan", "all");
-    router.push(`/?${params.toString()}`, { scroll: false });
+    onTransitionStart(() => router.push(`/?${params.toString()}`, { scroll: false }));
   };
 
   const kecamatanItems = [
@@ -113,9 +114,10 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function HorizontalBarChartCard({ currentDate, kodeKecamatan, kecamatanOptions, chartData, idealPercentage, lastUpdatedTime }: HorizontalBarChartCardProps) {
+export function HorizontalBarChartCard({ currentDate, kodeKecamatan, kecamatanOptions, chartData, idealPercentage, lastUpdatedTime, surveyPeriod }: HorizontalBarChartCardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = React.useTransition();
 
   // Date Picker State
   const [date, setDate] = React.useState<Date | undefined>(
@@ -148,7 +150,7 @@ export function HorizontalBarChartCard({ currentDate, kodeKecamatan, kecamatanOp
     if (date) {
       const params = new URLSearchParams(searchParams.toString());
       params.set("barDate", format(date, "yyyy-MM-dd"));
-      router.push(`/?${params.toString()}`, { scroll: false });
+      startTransition(() => router.push(`/?${params.toString()}`, { scroll: false }));
     }
   };
 
@@ -227,7 +229,7 @@ export function HorizontalBarChartCard({ currentDate, kodeKecamatan, kecamatanOp
             </label>
           </div>
           {/* Region Filter */}
-          <RegionFilter currentKecamatan={kodeKecamatan} options={kecamatanOptions} />
+          <RegionFilter currentKecamatan={kodeKecamatan} options={kecamatanOptions} onTransitionStart={startTransition} />
 
           {/* Single Date Picker Filter */}
           <Popover>
@@ -242,7 +244,7 @@ export function HorizontalBarChartCard({ currentDate, kodeKecamatan, kecamatanOp
                   selected={date}
                   onSelect={setDate}
                   className="rounded-md"
-                  disabled={(d) => d > new Date("2026-08-31") || d < new Date("2026-06-15")}
+                  disabled={(d) => d > new Date(surveyPeriod?.end_date || "2026-08-31") || d < new Date(surveyPeriod?.start_date || "2026-06-15")}
                 />
               </div>
               <div className="p-3 bg-muted/20">
@@ -257,7 +259,12 @@ export function HorizontalBarChartCard({ currentDate, kodeKecamatan, kecamatanOp
           </Popover>
         </div>
       </CardHeader>
-      <CardContent id="horizontal-bar-chart-card" className="pt-6 bg-card rounded-b-[16px] p-4 sm:p-6">
+      <CardContent id="horizontal-bar-chart-card" className="pt-6 bg-card rounded-b-[16px] p-4 sm:p-6 relative min-h-[300px]">
+        {isPending && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-[2px] rounded-b-[16px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
         <div className="mb-4 text-center w-full">
           <h3 className="text-base font-bold uppercase tracking-wider">{getBarTitle()}</h3>
         </div>

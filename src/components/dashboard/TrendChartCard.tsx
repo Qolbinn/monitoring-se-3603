@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Filter, Calendar as CalendarIcon, RotateCcw, Download, FileSpreadsheet, ImageIcon } from "lucide-react";
+import { Filter, Calendar as CalendarIcon, RotateCcw, Download, FileSpreadsheet, ImageIcon, Loader2 } from "lucide-react";
 import { exportDataToExcel, downloadChartAsImage } from "@/lib/utils";
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, TooltipProps, ResponsiveContainer, LabelList } from "recharts";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -50,7 +50,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 // Custom Tooltip component to show additional required information
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload, totalSurveyDays }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -84,7 +84,7 @@ const CustomTooltip = ({ active, payload }: any) => {
             <span className="font-mono font-bold">{data.actualPercentage.toFixed(1)}%</span>
           </p>
           <p className="flex justify-between gap-4" style={{ color: chartConfig.idealPercentage.color }}>
-            <span>% Ideal (Target 75 Hari):</span>
+            <span>% Ideal (Target {totalSurveyDays} Hari):</span>
             <span className="font-mono font-bold">{data.idealPercentage.toFixed(1)}%</span>
           </p>
         </div>
@@ -104,12 +104,14 @@ function RegionFilter({
   options, 
   desaOptions,
   currentKecamatan,
-  currentDesa 
+  currentDesa,
+  onTransitionStart
 }: { 
   options: any[], 
   desaOptions?: any[],
   currentKecamatan: string,
-  currentDesa: string 
+  currentDesa: string,
+  onTransitionStart: (cb: () => void) => void
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -149,7 +151,7 @@ function RegionFilter({
     const params = new URLSearchParams(searchParams.toString());
     params.set("kodeKecamatan", selectedKecamatan);
     params.set("kodeDesa", selectedDesa);
-    router.push(`/?${params.toString()}`, { scroll: false });
+    onTransitionStart(() => router.push(`/?${params.toString()}`, { scroll: false }));
   };
 
   const resetFilter = () => {
@@ -158,7 +160,7 @@ function RegionFilter({
     const params = new URLSearchParams(searchParams.toString());
     params.set("kodeKecamatan", "all");
     params.set("kodeDesa", "all");
-    router.push(`/?${params.toString()}`, { scroll: false });
+    onTransitionStart(() => router.push(`/?${params.toString()}`, { scroll: false }));
   };
 
   const activeFiltersCount = (currentKecamatan !== "all" ? 1 : 0) + (currentDesa !== "all" ? 1 : 0);
@@ -245,7 +247,7 @@ function RegionFilter({
 }
 
 // Internal Date Filter Popover Component
-function DateFilter({ currentStart, currentEnd }: { currentStart: string, currentEnd: string }) {
+function DateFilter({ currentStart, currentEnd, surveyPeriod, onTransitionStart }: { currentStart: string, currentEnd: string, surveyPeriod: any, onTransitionStart: (cb: () => void) => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -260,7 +262,7 @@ function DateFilter({ currentStart, currentEnd }: { currentStart: string, curren
       const params = new URLSearchParams(searchParams.toString());
       params.set("startDate", format(activeRange.from, "yyyy-MM-dd"));
       params.set("endDate", format(activeRange.to, "yyyy-MM-dd"));
-      router.push(`/?${params.toString()}`);
+      onTransitionStart(() => router.push(`/?${params.toString()}`, { scroll: false }));
     }
   };
 
@@ -308,7 +310,7 @@ function DateFilter({ currentStart, currentEnd }: { currentStart: string, curren
             onSelect={setDate}
             className="rounded-md"
             numberOfMonths={2}
-            disabled={(date) => date > new Date("2026-08-31")} // Cap maximum select to end of survey
+            disabled={(date) => date > new Date(surveyPeriod?.end_date || "2026-08-31")} // Cap maximum select to end of survey
           />
         </div>
         <div className="p-3 grid grid-cols-2 gap-2 bg-muted/20">
@@ -335,12 +337,22 @@ interface TrendChartCardProps {
     kodeKecamatan: string;
     kodeDesa: string;
   };
+  surveyPeriod: any;
 }
 
-export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, currentParams }: TrendChartCardProps) {
+export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, currentParams, surveyPeriod }: TrendChartCardProps) {
+  const [isPending, startTransition] = React.useTransition();
   const formattedStart = format(new Date(currentParams.startDate), "dd MMM yyyy", { locale: id });
   const formattedEnd = format(new Date(currentParams.endDate), "dd MMM yyyy", { locale: id });
   const [showDataLabels, setShowDataLabels] = React.useState(true);
+
+  let totalSurveyDays = 75;
+  if (surveyPeriod) {
+    const start = parseISO(surveyPeriod.start_date);
+    const end = parseISO(surveyPeriod.end_date);
+    const { differenceInDays } = require("date-fns");
+    totalSurveyDays = differenceInDays(end, start) + 1;
+  }
 
   const getTrendTitle = () => {
     const startStr = format(new Date(currentParams.startDate), "dd MMMM", { locale: id });
@@ -395,13 +407,13 @@ export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, curre
         
         {/* Filters Section */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center space-x-2 bg-muted/30 p-1.5 rounded-md border border-border/50">
-            <Switch 
-              id="trend-label-toggle" 
+          <div className="flex items-center gap-2 bg-muted/30 p-1.5 rounded-md border border-border/50">
+            <Switch
+              id="show-data-labels"
               checked={showDataLabels}
               onCheckedChange={setShowDataLabels}
             />
-            <label htmlFor="trend-label-toggle" className="text-xs font-medium cursor-pointer select-none pr-1">
+            <label htmlFor="show-data-labels" className="text-xs font-medium cursor-pointer select-none pr-1">
               Label Data
             </label>
           </div>
@@ -409,13 +421,24 @@ export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, curre
             options={kecamatanOptions} 
             desaOptions={desaOptions}
             currentKecamatan={currentParams.kodeKecamatan} 
-            currentDesa={currentParams.kodeDesa}
+            currentDesa={currentParams.kodeDesa} 
+            onTransitionStart={startTransition}
           />
-          <DateFilter currentStart={currentParams.startDate} currentEnd={currentParams.endDate} />
+          <DateFilter 
+            currentStart={currentParams.startDate} 
+            currentEnd={currentParams.endDate} 
+            surveyPeriod={surveyPeriod}
+            onTransitionStart={startTransition}
+          />
         </div>
       </CardHeader>
       
-      <CardContent id="trend-chart-card" className="pt-6 bg-card rounded-b-[16px] p-4 sm:p-6">
+      <CardContent id="trend-chart-card" className="px-2 pt-4 sm:px-6 sm:pt-6 relative min-h-[300px]">
+        {isPending && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-[2px] rounded-b-[16px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
         <div className="mb-4 text-center w-full">
           <h3 className="text-base font-bold uppercase tracking-wider">{getTrendTitle()}</h3>
         </div>
@@ -449,7 +472,7 @@ export function TrendChartCard({ chartData, kecamatanOptions, desaOptions, curre
                 tick={{ fontSize: 13, fontWeight: "bold", fill: "currentColor" }}
                 domain={['auto', 'auto']}
               />
-              <ChartTooltip content={<CustomTooltip />} />
+              <ChartTooltip content={<CustomTooltip totalSurveyDays={totalSurveyDays} />} />
               <ChartLegend content={<ChartLegendContent />} />
               <Line
                 type="monotone"

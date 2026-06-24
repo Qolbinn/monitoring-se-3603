@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { AuthService } from "@/services/AuthService";
 import { logoutAction } from "@/app/actions/authActions";
 
@@ -6,12 +7,15 @@ export async function Navbar() {
   const { user } = await AuthService.getSession();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background shadow-sm">
+    <header className="sticky top-0 z-50 w-full border-b-[3px] border-primary bg-background shadow-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-6 md:gap-10">
           <Link href="/" className="flex items-center space-x-2">
+            <div className="flex items-center justify-center mr-1">
+              <Image src="/logo.png" alt="Logo" width={28} height={28} className="object-contain" />
+            </div>
             <span className="inline-block font-heading font-bold text-xl text-foreground">
-              FASIH 3603
+              Monitoring SE 3603
             </span>
           </Link>
           <nav className="hidden md:flex gap-6">
